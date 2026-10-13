@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protecto - Enterprise Digital Risk Protection</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darker: '#070a12',
+                        dark: '#0f172a',
+                        card: '#182235',
+                        cardBorder: '#29374d',
+                        accent: {
+                            cyan: '#06b6d4',
+                            indigo: '#6366f1',
+                            rose: '#f43f5e',
+                            amber: '#f59e0b',
+                            emerald: '#10b981'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Inter & JetBrains Mono Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #070a12; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #070a12; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        
+        .glass-panel {
+            background: rgba(24, 34, 53, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid #29374d;
+        }
+
+        .diff-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .diff-overlay {
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            width: 50%;
+            overflow: hidden;
+            border-right: 2px solid #06b6d4;
+            box-shadow: 2px 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+        .animate-scan {
+            animation: scanline 2.5s linear infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+
+    <!-- Header Section -->
+    <header class="bg-dark border-b border-cardBorder sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-cyan-500 via-indigo-600 to-violet-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/20 flex items-center justify-center">
+                <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2.5">
+                    <h1 class="font-bold text-lg tracking-tight text-white flex items-center">
+                        Protecto <span class="ml-2 text-cyan-400 font-mono text-xs px-2 py-0.5 rounded-md bg-cyan-950 border border-cyan-500/30">VISION & RISK ENGINE v4.2</span>
+                    </h1>
+                </div>
+                <p class="text-xs text-slate-400">Enterprise Brand Counterfeit, Typosquatting & App Store Risk Protection</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <!-- Active Protection Chip -->
+            <div class="hidden lg:flex items-center space-x-2 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-cardBorder text-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-slate-300">Vault Brand: <strong id="header-brand-label" class="text-white">PayPal Inc.</strong></span>
+            </div>
+
+            <!-- Quick Demo Profile Selector -->
+            <div class="flex items-center space-x-2 bg-slate-900 px-2.5 py-1 rounded-xl border border-cardBorder">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                <label class="text-xs text-slate-400 font-medium">Demo Preset:</label>
+                <select id="demo-preset-select" onchange="loadDemoPreset(this.value)" class="bg-transparent text-xs text-cyan-400 font-semibold focus:outline-none cursor-pointer">
+                    <option value="paypal">PayPal vs PayPaI Scam</option>
+                    <option value="binance">Binance vs Binançe Helpdesk</option>
+                    <option value="stripe">Stripe vs Stripe Fake Support</option>
+                </select>
+            </div>
+
+            <button onclick="switchTab('analyzer')" class="bg-cyan-600 hover:bg-cyan-500 text-slate-950 px-3.5 py-1.5 rounded-lg font-bold text-xs transition shadow-lg shadow-cyan-500/20 flex items-center space-x-1.5">
+                <i data-lucide="scan" class="w-4 h-4"></i>
+                <span>Inspect URL/App</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex flex-col lg:flex-row">
+        <!-- Navigation Sidebar -->
+        <aside class="w-full lg:w-72 bg-dark border-r border-cardBorder p-4 flex flex-col justify-between shrink-0">
+            <nav class="space-y-1.5">
+                <div class="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Protecto Security Suite</div>
+                
+                <button onclick="switchTab('vault')" id="nav-vault" class="nav-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <i data-lucide="vault" class="w-4 h-4"></i>
+                    <span>Brand Identity Vault</span>
+                </button>
+
+                <button onclick="switchTab('analyzer')" id="nav-analyzer" class="nav-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 transition">
+                    <i data-lucide="search-check" class="w-4 h-4"></i>
+                    <span>Deep Visual Analyzer</span>
+                    <span class="ml-auto bg-cyan-500/20 text-cyan-300 text-[10px] px-1.5 py-0.5 rounded font-mono">CORE</span>
+                </button>
+
+                <button onclick="switchTab('crawler')" id="nav-crawler" class="nav-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 transition">
+                    <i data-lucide="radar" class="w-4 h-4"></i>
+                    <span>Ecosystem Monitor Feed</span>
+                    <span id="threat-count-badge" class="ml-auto bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.5 rounded-full text-[10px] font-bold">5 Threats</span>
+                </button>
+
+                <button onclick="switchTab('takedown')" id="nav-takedown" class="nav-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800/60 transition">
+                    <i data-lucide="gavel" class="w-4 h-4"></i>
+                    <span>Risk Matrix & Takedowns</span>
+                </button>
+            </nav>
+
+            <!-- Bottom Engine Metric Widget -->
+            <div class="mt-8 pt-4 border-t border-cardBorder glass-card p-3 rounded-2xl space-y-2">
+                <div class="flex items-center justify-between text-xs font-semibold text-slate-300">
+                    <span class="flex items-center"><i data-lucide="cpu" class="w-3.5 h-3.5 mr-1.5 text-cyan-400"></i> Protecto Vision Engine</span>
+                    <span class="text-emerald-400 text-[10px] font-mono">ONLINE</span>
+                </div>
+                <div class="space-y-1 text-[11px] text-slate-400 font-mono">
+                    <div class="flex justify-between"><span>Perceptual Hash:</span><span class="text-slate-200">pHash-64bit</span></div>
+                    <div class="flex justify-between"><span>String Distance:</span><span class="text-slate-200">Jaro-Winkler</span></div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-4 lg:p-8 overflow-y-auto">
+
+            <!-- ================= TAB 1: BRAND IDENTITY VAULT ================= -->
+            <div id="tab-vault" class="tab-content space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center">
+                            <i data-lucide="vault" class="w-5 h-5 mr-2 text-cyan-400"></i>
+                            Protecto Official Baseline & Asset Vault
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Configure official trademark parameters, authentic app links, and target logo baseline for comparison.</p>
+                    </div>
+                    <button onclick="saveVaultProfile()" class="bg-cyan-600 hover:bg-cyan-500 text-slate-950 px-4 py-2 rounded-xl font-bold text-xs transition shadow-lg shadow-cyan-500/20 flex items-center space-x-2">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Save Vault Baseline</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Brand Details Form -->
+                    <div class="glass-panel border border-cardBorder rounded-2xl p-6 lg:col-span-2 space-y-5">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider text-cyan-400 border-b border-cardBorder pb-3">1. Official Metadata Configuration</h3>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Official Company / Brand Name</label>
+                                <input type="text" id="vault-brand-name" value="PayPal Inc." class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Official Website Domain</label>
+                                <input type="text" id="vault-domain" value="paypal.com" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Official Twitter/X Handle</label>
+                                <input type="text" id="vault-twitter" value="@PayPal" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Official Instagram Handle</label>
+                                <input type="text" id="vault-instagram" value="@paypal" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Official Google Play Package ID / URL</label>
+                                <input type="text" id="vault-playstore" value="https://play.google.com/store/apps/details?id=com.paypal.android.p2pmobile" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Official Apple App Store Bundle ID / URL</label>
+                                <input type="text" id="vault-appstore" value="https://apps.apple.com/us/app/paypal-send-and-request-money/id283674424" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Official Authorized Publishers / Entities</label>
+                            <input type="text" id="vault-publishers" value="PayPal Mobile, PayPal Inc., PayPal Europe" class="w-full bg-slate-900 border border-cardBorder rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Official Logo Extractor Card -->
+                    <div class="glass-panel border border-cardBorder rounded-2xl p-6 space-y-4 flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider text-cyan-400 border-b border-cardBorder pb-3">2. Official Logo Baseline Asset</h3>
+                            <p class="text-xs text-slate-400 mt-2">Upload or select the official logo for Protecto's pixel color distribution and perceptual feature extraction.</p>
+
+                            <!-- Interactive Logo Upload Canvas Container -->
+                            <div class="mt-4 bg-slate-950 border border-dashed border-cardBorder rounded-xl p-4 text-center relative group">
+                                <canvas id="vault-logo-canvas" width="160" height="160" class="mx-auto rounded-lg shadow-lg border border-cardBorder/50 bg-slate-900"></canvas>
+                                <div class="mt-3 flex justify-center space-x-2">
+                                    <input type="file" id="logo-file-input" accept="image/*" class="hidden" onchange="handleLogoUpload(event)">
+                                    <button onclick="document.getElementById('logo-file-input').click()" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg border border-cardBorder transition flex items-center space-x-1.5">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5 text-cyan-400"></i>
+                                        <span>Upload Custom Logo</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Extracted Color Palette Bar -->
+                            <div class="mt-4 space-y-2">
+                                <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Extracted Dominant Palette</span>
+                                <div id="vault-palette-bar" class="flex h-6 rounded-lg overflow-hidden border border-cardBorder">
+                                    <div class="w-1/3 bg-[#003087]" title="#003087 (PayPal Dark Blue)"></div>
+                                    <div class="w-1/3 bg-[#0079C1]" title="#0079C1 (PayPal Light Blue)"></div>
+                                    <div class="w-1/3 bg-[#00457C]" title="#00457C (Accent Blue)"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-cardBorder flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                            <span>pHash Vector:</span>
+                            <span id="vault-phash" class="text-cyan-400 font-bold">101100101...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 2: REAL-TIME SUSPECT ANALYZER ================= -->
+            <div id="tab-analyzer" class="tab-content hidden space-y-6">
+                <!-- Top Input Form -->
+                <div class="glass-panel border border-cardBorder rounded-2xl p-6 space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div>
+                            <h2 class="text-xl font-bold text-white flex items-center">
+                                <i data-lucide="scan-line" class="w-5 h-5 mr-2 text-cyan-400"></i>
+                                Protecto Link & App Visual Analyzer
+                            </h2>
+                            <p class="text-xs text-slate-400">Paste any suspect Play Store app link, App Store URL, Twitter handle, or APK domain for automated visual diff & risk scoring.</p>
+                        </div>
+                        <span class="text-xs text-emerald-400 font-mono bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-ping"></span> Protecto Vision Ready
+                        </span>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="relative flex-1">
+                            <i data-lucide="link-2" class="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400"></i>
+                            <input type="text" id="suspect-input-url" value="https://play.google.com/store/apps/details?id=com.paypaI.mobile.scam" placeholder="Paste Twitter handle, Play Store link, or domain..." class="w-full bg-slate-900 border border-cardBorder rounded-xl pl-10 pr-4 py-3 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <button onclick="runDeepScan()" id="btn-deep-scan" class="bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold px-6 py-3 rounded-xl text-xs transition shadow-lg shadow-cyan-500/25 flex items-center justify-center space-x-2 shrink-0">
+                            <i data-lucide="radar" class="w-4 h-4"></i>
+                            <span>Deep Scan & Cross-Verify</span>
+                        </button>
+                    </div>
+
+                    <!-- Quick Sample Pickers -->
+                    <div class="flex flex-wrap items-center gap-2 pt-2 text-xs">
+                        <span class="text-slate-400 text-[11px] font-medium">Quick Load Samples:</span>
+                        <button onclick="loadSampleCase('paypal_fake')" class="bg-slate-900 hover:bg-slate-800 border border-cardBorder px-2.5 py-1 rounded-lg text-slate-300 hover:text-cyan-400 text-[11px] transition">PayPaI Fake App</button>
+                        <button onclick="loadSampleCase('binance_scam')" class="bg-slate-900 hover:bg-slate-800 border border-cardBorder px-2.5 py-1 rounded-lg text-slate-300 hover:text-cyan-400 text-[11px] transition">Binançe Support</button>
+                        <button onclick="loadSampleCase('stripe_fake')" class="bg-slate-900 hover:bg-slate-800 border border-cardBorder px-2.5 py-1 rounded-lg text-slate-300 hover:text-cyan-400 text-[11px] transition">Stripe Fake Handle</button>
+                    </div>
+                </div>
+
+                <!-- Results Section Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Left Column: Visual Diff Canvas & Typography Matching -->
+                    <div class="glass-panel border border-cardBorder rounded-2xl p-6 space-y-6 lg:col-span-2">
+                        <div class="flex items-center justify-between border-b border-cardBorder pb-3">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center">
+                                <i data-lucide="eye" class="w-4 h-4 mr-2 text-cyan-400"></i>
+                                Visual Logo Counterfeit & Heatmap Diff
+                            </h3>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-[11px] text-slate-400">Visual Similarity Match:</span>
+                                <span id="visual-sim-badge" class="font-mono text-xs font-bold text-rose-400 bg-rose-950/60 border border-rose-500/30 px-2 py-0.5 rounded">89.4% (HIGH COUNTERFEIT)</span>
+                            </div>
+                        </div>
+
+                        <!-- Side-by-Side & Overlay Canvas Box -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Baseline Official Logo -->
+                            <div class="bg-slate-950 border border-cardBorder rounded-xl p-4 text-center relative">
+                                <span class="absolute top-2 left-2 bg-emerald-950 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-500/30">Official Vault Baseline</span>
+                                <div class="w-32 h-32 mx-auto my-3 bg-slate-900 rounded-xl border border-cardBorder flex items-center justify-center overflow-hidden">
+                                    <canvas id="canvas-official-preview" width="128" height="128"></canvas>
+                                </div>
+                                <div class="text-[11px] text-slate-300 font-semibold" id="label-official-name">PayPal Inc.</div>
+                                <div class="text-[10px] text-slate-500 font-mono">Authentic Brand Asset</div>
+                            </div>
+
+                            <!-- Suspect Scraped Logo -->
+                            <div class="bg-slate-950 border border-cardBorder rounded-xl p-4 text-center relative">
+                                <span class="absolute top-2 left-2 bg-rose-950 text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-500/30">Scraped Suspect Logo</span>
+                                <div class="w-32 h-32 mx-auto my-3 bg-slate-900 rounded-xl border border-cardBorder flex items-center justify-center overflow-hidden relative">
+                                    <canvas id="canvas-suspect-preview" width="128" height="128"></canvas>
+                                    <div id="scanline-overlay" class="absolute inset-0 bg-gradient-to-b from-cyan-500/20 to-transparent animate-scan pointer-events-none"></div>
+                                </div>
+                                <div class="text-[11px] text-slate-300 font-semibold" id="label-suspect-name">PayPaI Mobile Free</div>
+                                <div class="text-[10px] text-slate-500 font-mono" id="label-suspect-pub">Pub: Untrusted Developer</div>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Blending / Heatmap Slider -->
+                        <div class="bg-slate-900/80 border border-cardBorder rounded-xl p-4 space-y-3">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-bold text-slate-300 flex items-center">
+                                    <i data-lucide="layers" class="w-4 h-4 mr-1.5 text-cyan-400"></i> Interactive Pixel Difference Heatmap Overlay
+                                </span>
+                                <span class="text-[11px] text-slate-400 font-mono">Protecto Pixel Variance Matrix</span>
+                            </div>
+
+                            <div class="relative w-full h-40 bg-slate-950 rounded-lg overflow-hidden border border-cardBorder flex items-center justify-center">
+                                <canvas id="canvas-diff-overlay" width="160" height="160" class="rounded-lg shadow-md"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Textual Distance & Typo Analysis Card -->
+                        <div class="bg-slate-900/80 border border-cardBorder rounded-xl p-4 space-y-3">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-cyan-400">Textual Typosquatting & Homoglyph Analysis</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+                                <div class="bg-slate-950 p-2.5 rounded-lg border border-cardBorder">
+                                    <span class="text-[10px] text-slate-400 block">Levenshtein Distance:</span>
+                                    <span id="metric-levenshtein" class="text-rose-400 font-bold text-sm">1 char swap</span>
+                                </div>
+                                <div class="bg-slate-950 p-2.5 rounded-lg border border-cardBorder">
+                                    <span class="text-[10px] text-slate-400 block">Jaro-Winkler Similarity:</span>
+                                    <span id="metric-jarowinkler" class="text-rose-400 font-bold text-sm">96.8%</span>
+                                </div>
+                                <div class="bg-slate-950 p-2.5 rounded-lg border border-cardBorder">
+                                    <span class="text-[10px] text-slate-400 block">Homoglyph Flag:</span>
+                                    <span id="metric-homoglyph" class="text-amber-400 font-bold text-sm">Detected ('I' for 'l')</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Composite Risk Meter & Radar Chart -->
+                    <div class="glass-panel border border-cardBorder rounded-2xl p-6 space-y-6 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between border-b border-cardBorder pb-3">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Protecto Risk Score</h3>
+                                <span id="risk-severity-badge" class="bg-rose-500/20 text-rose-400 border border-rose-500/40 text-xs font-bold px-2.5 py-0.5 rounded-full">CRITICAL THREAT</span>
+                            </div>
+
+                            <!-- Animated Risk Meter Gauge -->
+                            <div class="py-6 text-center relative">
+                                <div class="text-5xl font-black font-mono text-rose-500 tracking-tight" id="composite-risk-score">94</div>
+                                <div class="text-xs text-slate-400 uppercase tracking-widest mt-1 font-semibold">Composite Risk Rating</div>
+                                <div class="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden mt-4 border border-cardBorder">
+                                    <div id="risk-score-bar" class="bg-gradient-to-r from-amber-500 via-rose-500 to-rose-600 h-full rounded-full transition-all duration-700" style="width: 94%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Radar Vector Breakdown Chart -->
+                            <div class="space-y-2">
+                                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Risk Vector Breakdown</span>
+                                <div class="h-48 relative">
+                                    <canvas id="riskRadarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Automated Action Trigger Buttons -->
+                        <div class="pt-4 border-t border-cardBorder space-y-2">
+                            <button onclick="generateTakedownFromAnalysis()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-lg shadow-rose-600/25 flex items-center justify-center space-x-2">
+                                <i data-lucide="gavel" class="w-4 h-4"></i>
+                                <span>Generate Takedown Notice</span>
+                            </button>
+                            <button onclick="exportPdfReport()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-cardBorder font-semibold py-2 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                <span>Export Protecto Forensic Report</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 3: AUTOMATED ECOSYSTEM CRAWLER ================= -->
+            <div id="tab-crawler" class="tab-content hidden space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center">
+                            <i data-lucide="radar" class="w-5 h-5 mr-2 text-cyan-400"></i>
+                            Protecto Surveillance & Autonomous Scanner
+                        </h2>
+                        <p class="text-xs text-slate-400">Live simulated monitoring across Apple App Store, Google Play, Twitter/X, Instagram, Telegram, and APK hosts.</p>
+                    </div>
+                    <button onclick="triggerSurveillanceScan()" id="btn-surveillance-scan" class="bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition shadow-lg shadow-cyan-500/20 flex items-center space-x-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        <span>Initiate Ecosystem Scan</span>
+                    </button>
+                </div>
+
+                <!-- Threat Feed Table Container -->
+                <div class="glass-panel border border-cardBorder rounded-2xl overflow-hidden">
+                    <div class="p-4 bg-slate-900/60 border-b border-cardBorder flex items-center justify-between">
+                        <span class="text-xs font-bold text-white uppercase tracking-wider">Active External Threat Feed</span>
+                        <span class="text-xs font-mono text-cyan-400">Protecto Filter Active</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950 text-slate-400 border-b border-cardBorder uppercase font-mono">
+                                <tr>
+                                    <th class="p-3.5">Channel / Store</th>
+                                    <th class="p-3.5">Suspect Asset Name</th>
+                                    <th class="p-3.5">Publisher / Dev</th>
+                                    <th class="p-3.5">Visual Match</th>
+                                    <th class="p-3.5">Risk Score</th>
+                                    <th class="p-3.5">Status</th>
+                                    <th class="p-3.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crawler-tbody" class="divide-y divide-cardBorder/40 font-mono">
+                                <!-- Injected dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 4: RISK MATRIX & TAKEDOWNS ================= -->
+            <div id="tab-takedown" class="tab-content hidden space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center">
+                        <i data-lucide="gavel" class="w-5 h-5 mr-2 text-rose-500"></i>
+                        Protecto Threat Triage & Automated Legal Takedown Desk
+                    </h2>
+                    <p class="text-xs text-slate-400">Generate platform-compliant DMCA and trademark infringement takedown letters ready for immediate dispatch.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Triage Threat Selection List -->
+                    <div class="glass-panel border border-cardBorder rounded-2xl p-4 space-y-3 lg:col-span-1 max-h-[600px] overflow-y-auto">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Select Flagged Threat</h3>
+                        <div id="takedown-list" class="space-y-2">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Legal Takedown Letter Editor Card -->
+                    <div class="glass-panel border border-cardBorder rounded-2xl p-6 lg:col-span-2 space-y-4">
+                        <div class="flex items-center justify-between border-b border-cardBorder pb-3">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center">
+                                <i data-lucide="file-text" class="w-4 h-4 mr-2 text-cyan-400"></i> Automated DMCA Notice Generator
+                            </h3>
+                            <button onclick="copyTakedownNotice()" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-cardBorder px-3 py-1.5 rounded-lg transition flex items-center space-x-1">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                                <span>Copy Notice</span>
+                            </button>
+                        </div>
+
+                        <textarea id="takedown-letter-body" rows="14" class="w-full bg-slate-950 border border-cardBorder rounded-xl p-4 font-mono text-xs text-slate-200 focus:outline-none focus:border-cyan-500 leading-relaxed"></textarea>
+
+                        <div class="flex items-center justify-between pt-2">
+                            <span class="text-[11px] text-slate-400">Ready to dispatch to Google Abuse, Apple Legal, or Registrar abuse desks.</span>
+                            <button onclick="markTakedownDispatched()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-5 py-2 rounded-xl text-xs transition shadow-lg shadow-rose-600/20">
+                                Dispatch Takedown Notice
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast Notification Widget -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 border border-cardBorder text-slate-100 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="toast-icon" class="text-cyan-400">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+            <h4 id="toast-title" class="text-xs font-bold">Action Completed</h4>
+            <p id="toast-desc" class="text-[11px] text-slate-400">Operation performed successfully.</p>
+        </div>
+    </div>
+
+    <script>
+        // Global Application State & Demo Presets
+        const demoProfiles = {
+            paypal: {
+                brandName: "PayPal Inc.",
+                domain: "paypal.com",
+                twitter: "@PayPal",
+                instagram: "@paypal",
+                playstore: "https://play.google.com/store/apps/details?id=com.paypal.android.p2pmobile",
+                appstore: "https://apps.apple.com/us/app/paypal-send-and-request-money/id283674424",
+                publishers: "PayPal Mobile, PayPal Inc.",
+                logoColors: ["#003087", "#0079C1", "#00457C"],
+                suspectUrl: "https://play.google.com/store/apps/details?id=com.paypaI.mobile.scam",
+                suspectName: "PayPaI Mobile Free",
+                suspectPub: "Untrusted Android Devs",
+                levenshtein: "1 char swap ('I' for 'l')",
+                jaroWinkler: "96.8%",
+                homoglyph: "Detected ('I' for 'l')",
+                visualSim: "89.4%",
+                riskScore: 94,
+                radarData: [92, 96, 95, 90, 88]
+            },
+            binance: {
+                brandName: "Binance Ltd",
+                domain: "binance.com",
+                twitter: "@binance",
+                instagram: "@binance",
+                playstore: "https://play.google.com/store/apps/details?id=com.binance.dev",
+                appstore: "https://apps.apple.com/us/app/binance-buy-bitcoin/id1436799971",
+                publishers: "Binance Ltd, Binance Europe",
+                logoColors: ["#F0B90B", "#181A20", "#2B313A"],
+                suspectUrl: "https://twitter.com/Binançe_Support",
+                suspectName: "Binançe Official Helpdesk",
+                suspectPub: "Crypto Scam Network",
+                levenshtein: "1 homoglyph ('ç' for 'c')",
+                jaroWinkler: "95.1%",
+                homoglyph: "Detected ('ç' for 'c')",
+                visualSim: "91.2%",
+                riskScore: 89,
+                radarData: [90, 95, 88, 85, 92]
+            },
+            stripe: {
+                brandName: "Stripe Inc.",
+                domain: "stripe.com",
+                twitter: "@stripe",
+                instagram: "@stripe",
+                playstore: "https://play.google.com/store/apps/details?id=com.stripe.android.dashboard",
+                appstore: "https://apps.apple.com/us/app/stripe-dashboard/id1178235712",
+                publishers: "Stripe Inc.",
+                logoColors: ["#635BFF", "#0A2540", "#00D4B2"],
+                suspectUrl: "https://twitter.com/Stripe_Help_Support",
+                suspectName: "Stripe Support Official",
+                suspectPub: "Phishing Bot Net",
+                levenshtein: "Added keywords ('_Help_Support')",
+                jaroWinkler: "88.4%",
+                homoglyph: "None (Keyword Squat)",
+                visualSim: "84.5%",
+                riskScore: 82,
+                radarData: [85, 88, 80, 82, 80]
+            }
+        };
+
+        let currentPresetKey = 'paypal';
+        let crawlerThreats = [
+            { id: 1, platform: "Google Play Store", name: "PayPaI Mobile Free", pub: "Untrusted Android Devs", visual: "89.4%", risk: 94, status: "Active" },
+            { id: 2, platform: "Twitter / X", name: "@Binançe_Support", pub: "Crypto Scam Network", visual: "91.2%", risk: 89, status: "Active" },
+            { id: 3, platform: "Apple App Store", name: "PayPal Wallet Authenticator", pub: "Fast Apps LLC", visual: "82.1%", risk: 78, status: "Pending DMCA" },
+            { id: 4, platform: "Instagram", name: "@paypal_official_claims", pub: "Fake Contest Bot", visual: "86.5%", risk: 85, status: "Active" },
+            { id: 5, platform: "Telegram", name: "Binance VIP Support Channel", pub: "Unknown Group", visual: "79.0%", risk: 72, status: "Active" }
+        ];
+
+        let selectedTakedownId = 1;
+        let radarChartInstance = null;
+
+        // Initialize Lucide & App on DOM Load
+        window.onload = function() {
+            lucide.createIcons();
+            initCanvases();
+            initRadarChart();
+            renderCrawlerTable();
+            renderTakedownList();
+            updateTakedownLetter();
+        };
+
+        // Navigation Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('bg-cyan-500/10', 'text-cyan-400', 'border', 'border-cyan-500/20');
+                el.classList.add('text-slate-400');
+            });
+
+            document.getElementById(tab-${tabId}).classList.remove('hidden');
+            const activeBtn = document.getElementById(nav-${tabId});
+            if (activeBtn) {
+                activeBtn.classList.add('bg-cyan-500/10', 'text-cyan-400', 'border', 'border-cyan-500/20');
+                activeBtn.classList.remove('text-slate-400');
+            }
+            lucide.createIcons();
+        }
+
+        // Initialize Canvas Graphics for Baseline & Comparison Logos
+        function initCanvases() {
+            const p = demoProfiles[currentPresetKey];
+            
+            // Vault Logo Canvas
+            drawLogoCanvas('vault-logo-canvas', p.logoColors, p.brandName);
+            
+            // Analyzer Official & Suspect Preview Canvases
+            drawLogoCanvas('canvas-official-preview', p.logoColors, p.brandName);
+            drawLogoCanvas('canvas-suspect-preview', p.logoColors, p.suspectName, true);
+            drawDiffOverlayCanvas('canvas-diff-overlay', p.logoColors);
+        }
+
+        function drawLogoCanvas(canvasId, colors, text, isSuspect = false) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Background Gradient
+            const grad = ctx.createLinearGradient(0, 0, w, h);
+            grad.addColorStop(0, colors[0] || '#003087');
+            grad.addColorStop(1, colors[1] || '#0079C1');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Draw Inner Brand Shield Icon
+            ctx.fillStyle = colors[2] || '#ffffff';
+            ctx.beginPath();
+            ctx.arc(w/2, h/2 - 10, w/4, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (isSuspect) {
+                // Add intentional distortion/noise for suspect logo
+                ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
+                ctx.fillRect(w/2 - 15, h/2 - 25, 30, 30);
+            }
+
+            // Draw Brand Initials
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 22px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text.substring(0, 2).toUpperCase(), w/2, h/2 - 10);
+        }
+
+        function drawDiffOverlayCanvas(canvasId, colors) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Base Official Drawing
+            ctx.fillStyle = colors[0] || '#003087';
+            ctx.fillRect(0, 0, w, h);
+
+            // Heatmap Pixel Difference Noise Box
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.65)';
+            ctx.fillRect(w*0.3, h*0.2, w*0.4, h*0.4);
+
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.5)';
+            ctx.fillRect(w*0.25, h*0.5, w*0.5, h*0.2);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px JetBrains Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('[Protecto Heatmap Variance]', w/2, h - 15);
+        }
+
+        // Radar Chart Initialization
+        function initRadarChart() {
+            const ctx = document.getElementById('riskRadarChart');
+            if (!ctx) return;
+
+            const p = demoProfiles[currentPresetKey];
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Visual Match', 'Handle Squatting', 'Publisher Mismatch', 'Keyword Distortion', 'Logo Color Variance'],
+                    datasets: [{
+                        label: 'Protecto Risk Weight Vector',
+                        data: p.radarData,
+                        backgroundColor: 'rgba(244, 63, 94, 0.25)',
+                        borderColor: '#f43f5e',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#06b6d4',
+                        pointBorderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: '#29374d' },
+                            grid: { color: '#182235' },
+                            pointLabels: { color: '#94a3b8', font: { size: 9, family: 'Inter' } },
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Load Preset Demo Profiles
+        function loadDemoPreset(key) {
+            currentPresetKey = key;
+            const p = demoProfiles[key];
+            if (!p) return;
+
+            document.getElementById('header-brand-label').innerText = p.brandName;
+            document.getElementById('vault-brand-name').value = p.brandName;
+            document.getElementById('vault-domain').value = p.domain;
+            document.getElementById('vault-twitter').value = p.twitter;
+            document.getElementById('vault-instagram').value = p.instagram;
+            document.getElementById('vault-playstore').value = p.playstore;
+            document.getElementById('vault-appstore').value = p.appstore;
+            document.getElementById('vault-publishers').value = p.publishers;
+
+            // Update Analyzer Fields
+            document.getElementById('suspect-input-url').value = p.suspectUrl;
+            document.getElementById('label-official-name').innerText = p.brandName;
+            document.getElementById('label-suspect-name').innerText = p.suspectName;
+            document.getElementById('label-suspect-pub').innerText = Pub: ${p.suspectPub};
+            document.getElementById('metric-levenshtein').innerText = p.levenshtein;
+            document.getElementById('metric-jarowinkler').innerText = p.jaroWinkler;
+            document.getElementById('metric-homoglyph').innerText = p.homoglyph;
+            document.getElementById('visual-sim-badge').innerText = ${p.visualSim} (HIGH COUNTERFEIT);
+            document.getElementById('composite-risk-score').innerText = p.riskScore;
+            document.getElementById('risk-score-bar').style.width = ${p.riskScore}%;
+
+            initCanvases();
+
+            if (radarChartInstance) {
+                radarChartInstance.data.datasets[0].data = p.radarData;
+                radarChartInstance.update();
+            }
+
+            showToast("Protecto Demo Loaded", Loaded '${p.brandName}' vs suspect profile case.);
+        }
+
+        // Quick Sample Load
+        function loadSampleCase(caseType) {
+            if (caseType === 'paypal_fake') loadDemoPreset('paypal');
+            if (caseType === 'binance_scam') loadDemoPreset('binance');
+            if (caseType === 'stripe_fake') loadDemoPreset('stripe');
+            switchTab('analyzer');
+        }
+
+        // Deep Scan Execution
+        function runDeepScan() {
+            const btn = document.getElementById('btn-deep-scan');
+            btn.innerHTML = <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div><span>Running Protecto Vector Scan...</span>;
+            
+            setTimeout(() => {
+                btn.innerHTML = <i data-lucide="radar" class="w-4 h-4"></i><span>Deep Scan & Cross-Verify</span>;
+                lucide.createIcons();
+                showToast("Protecto Scan Complete", "Cross-verified logo perceptual hash and text typosquatting distance.");
+            }, 1200);
+        }
+
+        // Save Vault Baseline
+        function saveVaultProfile() {
+            const name = document.getElementById('vault-brand-name').value;
+            document.getElementById('header-brand-label').innerText = name;
+            showToast("Protecto Vault Updated", "Saved official whitelist and target trademark vectors.");
+        }
+
+        // Custom Logo Upload Handler
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('vault-logo-canvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    showToast("Custom Logo Uploaded", "Protecto extracted new perceptual feature vector.");
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Render Ecosystem Crawler Table
+        function renderCrawlerTable() {
+            const tbody = document.getElementById('crawler-tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = crawlerThreats.map(t => `
+                <tr class="hover:bg-slate-900/60 transition">
+                    <td class="p-3.5 text-slate-300 font-semibold">${t.platform}</td>
+                    <td class="p-3.5 text-cyan-300 font-bold">${t.name}</td>
+                    <td class="p-3.5 text-slate-400">${t.pub}</td>
+                    <td class="p-3.5 text-rose-400 font-bold">${t.visual}</td>
+                    <td class="p-3.5 font-bold"><span class="px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-500/30">${t.risk} / 100</span></td>
+                    <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.status === 'Active' ? 'bg-amber-950 text-amber-400 border border-amber-500/30' : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'}">${t.status}</span></td>
+                    <td class="p-3.5 text-right">
+                        <button onclick="inspectThreatFromCrawler(${t.id})" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 px-2.5 py-1 rounded text-xs font-semibold transition">Inspect</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function triggerSurveillanceScan() {
+            const btn = document.getElementById('btn-surveillance-scan');
+            btn.innerHTML = <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div><span>Protecto Scanning Stores...</span>;
+            setTimeout(() => {
+                btn.innerHTML = <i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Initiate Ecosystem Scan</span>;
+                lucide.createIcons();
+                showToast("Surveillance Complete", "Protecto scanned stores and social channels. 5 threats verified.");
+            }, 1400);
+        }
+
+        function inspectThreatFromCrawler(id) {
+            selectedTakedownId = id;
+            switchTab('analyzer');
+        }
+
+        // Render Takedown Selection List
+        function renderTakedownList() {
+            const list = document.getElementById('takedown-list');
+            if (!list) return;
+
+            list.innerHTML = crawlerThreats.map(t => `
+                <div onclick="selectTakedownItem(${t.id})" class="p-3 rounded-xl border transition cursor-pointer ${selectedTakedownId === t.id ? 'bg-rose-500/10 border-rose-500/40' : 'bg-slate-900/60 border-cardBorder hover:bg-slate-900'}">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-white">${t.name}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-500/30 font-mono">${t.risk} Risk</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                        <span>${t.platform}</span>
+                        <span>${t.status}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectTakedownItem(id) {
+            selectedTakedownId = id;
+            renderTakedownList();
+            updateTakedownLetter();
+        }
+
+        function updateTakedownLetter() {
+            const target = crawlerThreats.find(t => t.id === selectedTakedownId) || crawlerThreats[0];
+            const p = demoProfiles[currentPresetKey];
+
+            const letter = `FORMAL NOTICE OF TRADEMARK INFRINGEMENT & DMCA TAKEDOWN REQUEST
+
+To: Abuse & Compliance Operations Desk (${target.platform})
+Date: October 13, 2026
+Reference Case ID: PROTECTO-DRP-${target.id}982-FC
+
+1. IDENTIFICATION OF RIGHTSHOLDER:
+Brand Name: ${p.brandName}
+Official Domain: ${p.domain}
+Authorized App Bundle ID: ${p.playstore}
+
+2. INFRINGING ASSET DETAILS:
+Infringing Account / App Name: ${target.name}
+Platform Source: ${target.platform}
+Publisher / Developer: ${target.pub}
+Calculated Counterfeit Similarity Score: ${target.visual}
+Protecto Composite Risk Score: ${target.risk} / 100
+
+3. STATEMENT OF INFRINGEMENT:
+The above suspect asset utilizes unauthorized, identical, or confusingly similar trademarks and logo pixel structures belonging to ${p.brandName}. Our Protecto Vision Engine confirmed an explicit perceptual match (${target.visual}) designed to deceive end users and harvest credentials.
+
+4. REQUESTED ACTION:
+We request the immediate suspension, removal, and termination of the infringing listing pursuant to trademark abuse policies and international copyright law.
+
+Signed,
+Digital Risk Protection Operations Desk
+Protecto Vision & Risk Engine`;
+
+            document.getElementById('takedown-letter-body').value = letter;
+        }
+
+        function generateTakedownFromAnalysis() {
+            switchTab('takedown');
+        }
+
+        function copyTakedownNotice() {
+            const text = document.getElementById('takedown-letter-body');
+            text.select();
+            document.execCommand('copy');
+            showToast("Copied to Clipboard", "Protecto DMCA notice ready for dispatch.");
+        }
+
+        function markTakedownDispatched() {
+            const target = crawlerThreats.find(t => t.id === selectedTakedownId);
+            if (target) target.status = "Pending DMCA";
+            renderCrawlerTable();
+            renderTakedownList();
+            showToast("Protecto Takedown Dispatched", "Notice logged and transmitted to platform legal desk.");
+        }
+
+        function exportPdfReport() {
+            showToast("Protecto PDF Exported", "Downloaded visual diff breakdown & legal evidence report.");
+        }
+
+        // Toast Helper Function
+        function showToast(title, desc) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
